@@ -54,18 +54,16 @@ runs:
           echo "[ERROR] Example: https://gist.github.com/awinecki/bdfc59bba671e947bf511122cb8a8a7e"
         fi
         
-        yq --version
-
-        cluster=$(cat $CHART_PATH/$envs_file | yq .$ENV.cluster -)
-        values_file=$(cat $CHART_PATH/$envs_file | yq .$ENV.values -)
+        cluster=$(cat $CHART_PATH/$envs_file | yq .$ENV.cluster)
+        values_file=$(cat $CHART_PATH/$envs_file | yq .$ENV.values)
 
         if [[ $cluster == "null" ]]; then
           echo "[INFO] Env not found in $envs_file. Using default cluster.."
-          cluster=$(cat $CHART_PATH/$envs_file | yq .default.cluster -)
+          cluster=$(cat $CHART_PATH/$envs_file | yq .default.cluster)
         fi
         if [[ $values_file == "null" ]]; then
           echo "[INFO] Env not found in $envs_file. Using default values file.."
-          values_file=$(cat $CHART_PATH/$envs_file | yq .default.values -)
+          values_file=$(cat $CHART_PATH/$envs_file | yq .default.values)
         fi
 
         echo "CLUSTER=$cluster" >> $GITHUB_ENV
@@ -100,14 +98,14 @@ runs:
       uses: azure/setup-helm@v4
 
     - name: Set k8s context to PR
-      if: ${{ inputs.cluster == 'pr' }}
+      if: ${{ env.CLUSTER == 'pr' }}
       uses: azure/k8s-set-context@v4
       with:
         method: kubeconfig
         kubeconfig: "${{ inputs.kubeconfig_pr }}"
 
     - name: Set k8s context to NP
-      if: ${{ inputs.cluster == 'np' }}
+      if: ${{ env.CLUSTER == 'np' }}
       uses: azure/k8s-set-context@v4
       with:
         method: kubeconfig
