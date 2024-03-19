@@ -42,6 +42,9 @@ runs:
         echo "HELM_RELEASE=app-$app-$env" >> $GITHUB_ENV
         echo "NAMESPACE=app-$app-$env" >> $GITHUB_ENV
 
+    - name: Setup yq
+      uses: chrisdickinson/setup-yq@latest
+
     - name: Check for envs.yaml file, set up cluster and values file
       shell: bash
       run: |
@@ -57,11 +60,11 @@ runs:
         cluster=$(cat $CHART_PATH/$envs_file | yq .$env.cluster)
         values_file=$(cat $CHART_PATH/$envs_file | yq .$env.values)
 
-        if [[ $cluster == "null"]]; then
+        if [[ $cluster == "null" ]]; then
           echo "[INFO] Env not found in $envs_file. Using default cluster.."
           cluster=$(cat $CHART_PATH/$envs_file | yq .default.cluster)
         fi
-        if [[ $values_file == "null"]]; then
+        if [[ $values_file == "null" ]]; then
           echo "[INFO] Env not found in $envs_file. Using default values file.."
           values_file=$(cat $CHART_PATH/$envs_file | yq .default.values)
         fi
