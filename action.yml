@@ -153,7 +153,7 @@ runs:
       if: failure()
       shell: bash
       run: |
-        # List all pod names in the namespace
+        # Print logs of a failed deployment's pods and events
         PODS=$(kubectl get pods -n $NAMESPACE -o jsonpath="{.items[*].metadata.name}")
         for POD in $PODS; do
           echo "[DEBUG] Logs for pod $POD:"
@@ -161,4 +161,4 @@ runs:
         done
         
         echo "[DEBUG] Events (Warning) for namespace $NAMESPACE:"
-        kubectl events -n $NAMESPACE --sort-by='.metadata.creationTimestamp' --types=Warning
+        kubectl events -n $NAMESPACE --types=Warning
