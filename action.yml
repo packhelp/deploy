@@ -132,7 +132,7 @@ runs:
         echo "[INFO] Replaced Chart.yaml version to $REF_SLUG and appVersion to $RELEASE_VERSION.."
 
     - name: Helm deploy
-      uses: WyriHaximus/github-action-helm3@v3
+      shell: bash
       run: |
         # Deploying helm chart..
         helm upgrade $HELM_RELEASE \
