@@ -1,10 +1,21 @@
 name: 'Hello World'
 description: 'Greet someone'
 inputs:
-  who-to-greet:  # id of input
-    description: 'Who to greet'
+  app:
+    description: 'Application to deploy'
     required: true
-    default: 'World'
+  env:
+    description: 'Environment (staging, production)'
+    required: true
+  cluster:
+    description: 'K8s cluster to deploy to'
+    required: true
+  # image_tag:
+  #   description: 'Override image tag to deploy'
+  #   required: false
+  # helm_chart:
+  #   description: 'Override helm chart directory path'
+  #   required: false
 outputs:
   random-number:
     description: "Random number"
@@ -16,7 +27,14 @@ runs:
       run: echo "Hello $INPUT_WHO_TO_GREET."
       shell: bash
       env:
-        INPUT_WHO_TO_GREET: ${{ inputs.who-to-greet }}
+        INPUT_WHO_TO_GREET: John
+
+    - name: Show input params
+      run: |
+        echo "app: ${{ inputs.app }}"
+        echo "env: ${{ inputs.env }}"
+        echo "cluster: ${{ inputs.cluster }}"
+      shell: bash
 
     - name: Random Number Generator
       id: random-number-generator
