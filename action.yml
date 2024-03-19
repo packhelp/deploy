@@ -146,6 +146,7 @@ runs:
           --set version="$RELEASE_VERSION" \
           --set envName="$ENV" \
           --set env="$ENV" \
+          --timeout "30s" \
           --namespace="$NAMESPACE" \
           --install --wait --atomic --create-namespace
 
