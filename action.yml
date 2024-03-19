@@ -34,11 +34,11 @@ runs:
       shell: bash
       run: |
         # Debug input values
-        echo "[DEBUG] app: ${{ inputs.app }}"
-        echo "[DEBUG] env: ${{ inputs.env }}"
-        echo "[DEBUG] cluster: ${{ inputs.cluster }}"
-        echo "[DEBUG] chart_path: ${{ inputs.chart_path }}"
-        echo "[DEBUG] envs_with_values: ${{ inputs.envs_with_values }}"
+        echo "[INFO] app: ${{ inputs.app }}"
+        echo "[INFO] env: ${{ inputs.env }}"
+        echo "[INFO] cluster: ${{ inputs.cluster }}"
+        echo "[INFO] chart_path: ${{ inputs.chart_path }}"
+        echo "[INFO] envs_with_values: ${{ inputs.envs_with_values }}"
 
     - name: Set base helm parameters
       shell: bash
@@ -97,6 +97,8 @@ runs:
       with:
         kubeconfig: "${{ inputs.kubeconfig_np }}"
         exec: |
+          # Linting helm chart..
+          echo "[INFO] Linting helm chart.."
           helm lint --strict \
             --set image.tag="$IMAGE_TAG" \
             --set envName="$ENV" \
@@ -111,6 +113,8 @@ runs:
       with:
         kubeconfig: "${{ inputs.kubeconfig_pr }}"
         exec: |
+          # Linting helm chart..
+          echo "[INFO] Linting helm chart.."
           helm lint --strict \
             --set image.tag="$IMAGE_TAG" \
             --set envName="$ENV" \
@@ -123,10 +127,12 @@ runs:
     - name: Update helm chart appVersion to the deployed image sha
       shell: bash
       run: |
+        # Updating helm cart version to REF_SLUG and RELEASE_VERSION..
         sed -i \
           "s/^version:.*$/version: $CHART_REF_SLUG/" $CHART_PATH/Chart.yaml
         sed -i \
           "s/^appVersion:.*$/appVersion: $RELEASE_VERSION/" $CHART_PATH/Chart.yaml
+        echo "[INFO] Replaced Chart.yaml version to $REF_SLUG and appVersion to $RELEASE_VERSION.."
 
     - name: Helm deploy [np]
       if: ${{ inputs.cluster == 'np' }}
@@ -134,6 +140,8 @@ runs:
       with:
         kubeconfig: "${{ inputs.kubeconfig_np }}"
         exec: |
+          # Deploying helm chart..
+          echo "[INFO] Deploying helm chart.."
           helm upgrade $HELM_RELEASE \
             $CHART_PATH \
             --values="$CHART_PATH/$HELM_VALUES" \
@@ -150,6 +158,8 @@ runs:
       with:
         kubeconfig: "${{ inputs.kubeconfig_pr }}"
         exec: |
+          # Deploying helm chart..
+          echo "[INFO] Deploying helm chart.."
           helm upgrade $HELM_RELEASE \
             $CHART_PATH \
             --values="$CHART_PATH/$HELM_VALUES" \
