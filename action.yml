@@ -108,7 +108,7 @@ runs:
             $CHART_PATH 1>&2
 
     - name: Helm lint [pr]
-      if: ${{ inputs.cluster == 'np' }}
+      if: ${{ inputs.cluster == 'pr' }}
       uses: WyriHaximus/github-action-helm3@v2
       with:
         kubeconfig: "${{ inputs.kubeconfig_pr }}"
