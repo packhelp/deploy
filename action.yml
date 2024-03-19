@@ -47,7 +47,7 @@ runs:
         app="${{ inputs.app }}"
         echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
         echo "ENV=$env" >> $GITHUB_ENV
-        echo "CHART_PATH="${{ inputs.chart_path }}" >> $GITHUB_ENV
+        echo "CHART_PATH=${{ inputs.chart_path }}" >> $GITHUB_ENV
         echo "HELM_RELEASE=app-$app-$env" >> $GITHUB_ENV
         echo "NAMESPACE=app-$app-$env" >> $GITHUB_ENV
 
