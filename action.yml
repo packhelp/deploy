@@ -42,7 +42,7 @@ runs:
     - name: Set base helm parameters
       shell: bash
       run: |
-        echo "[DEBUG]: Setting base helm parameters.."
+        # Setting base helm parameters..
         env="${{ inputs.env }}"
         app="${{ inputs.app }}"
         echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
@@ -54,7 +54,7 @@ runs:
     - name: Set ref slug and chart ref slug
       shell: bash
       run: |
-        echo "[DEBUG]: Setting ref slug and chart ref slug.."
+        # Setting ref slug and chart ref slug..
         ref="${{ github.ref_name || github.event.release.tag_name }}"
         # Convert refs into slugs (allow . for ~v1.2.0)
         ref_slug=$(echo $ref \
@@ -67,7 +67,7 @@ runs:
     - name: Set release version
       shell: bash
       run: |
-        echo "[DEBUG]: Setting release version.."
+        # Setting release version..
         # If ref name is SEMVER-like, use it for release version
         if [[ $REF_SLUG =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
           release_version="$REF_SLUG"
@@ -79,7 +79,7 @@ runs:
     - name: Set helm values
       shell: bash
       run: |
-        echo "[DEBUG]: Setting helm values.."
+        # Setting helm values..
         # Use custom values yaml file if exists. Otherwise, use values.dev.yaml
         envs_with_values="${{ inputs.envs_with_values }}"
         envs_with_values_regex=${envs_with_values//,/|}
@@ -89,14 +89,6 @@ runs:
           helm_values="values.dev.yaml"
         fi
         echo "HELM_VALUES=$helm_values" >> $GITHUB_ENV
-
-    - name: Update helm chart appVersion to the deployed image sha
-      shell: bash
-      run: |
-        sed -i \
-          "s/^version:.*$/version: $CHART_REF_SLUG/" $CHART_PATH/Chart.yaml
-        sed -i \
-          "s/^appVersion:.*$/appVersion: $RELEASE_VERSION/" $CHART_PATH/Chart.yaml
 
     - name: Helm lint [np]
       if: ${{ inputs.cluster == 'np' }}
@@ -130,4 +122,11 @@ runs:
       run: goodbye.sh
       shell: bash
 
-
+    # Must be after lint. Helm expects version and appVersion to follow strict SemVer
+    - name: Update helm chart appVersion to the deployed image sha
+      shell: bash
+      run: |
+        sed -i \
+          "s/^version:.*$/version: $CHART_REF_SLUG/" $CHART_PATH/Chart.yaml
+        sed -i \
+          "s/^appVersion:.*$/appVersion: $RELEASE_VERSION/" $CHART_PATH/Chart.yaml
