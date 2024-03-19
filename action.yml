@@ -14,6 +14,15 @@ inputs:
     description: 'Custom helm chart directory path'
     default: "helm-chart"
     required: false
+  envs_with_values:
+    description: 'Comma separated list of envs that have custom values.yaml files'
+    required: false
+  kubeconfig_pr:
+    description: 'Kubeconfig for PR cluster'
+    required: false
+  kubeconfig_np:
+    description: 'Kubeconfig for NP cluster'
+    required: false
   # image_tag:
   #   description: 'Override image tag to deploy'
   #   required: false
@@ -27,49 +36,59 @@ runs:
         echo "[DEBUG] app: ${{ inputs.app }}"
         echo "[DEBUG] env: ${{ inputs.env }}"
         echo "[DEBUG] cluster: ${{ inputs.cluster }}"
-        echo "[DEBUG] chart_path: ${{ inputs.cluster }}"
+        echo "[DEBUG] chart_path: ${{ inputs.chart_path }}"
+        echo "[DEBUG] envs_with_values: ${{ inputs.envs_with_values }}"
 
-    - name: Extract & prepare helm chart params
+    - name: Set base helm parameters
       shell: bash
       run: |
-        image_tag="${{ github.sha }}"
-        ref="${{ github.ref_name || github.event.release.tag_name }}"
+        echo "[DEBUG]: Setting base helm parameters.."
         env="${{ inputs.env }}"
-        chart_path="${{ inputs.chart_path }}"
+        app="${{ inputs.app }}"
+        echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
+        echo "ENV=$env" >> $GITHUB_ENV
+        echo "CHART_PATH="${{ inputs.chart_path }}" >> $GITHUB_ENV
+        echo "HELM_RELEASE=app-$app-$env" >> $GITHUB_ENV
+        echo "NAMESPACE=app-$app-$env" >> $GITHUB_ENV
 
+    - name: Set ref slug and chart ref slug
+      shell: bash
+      run: |
+        echo "[DEBUG]: Setting ref slug and chart ref slug.."
+        ref="${{ github.ref_name || github.event.release.tag_name }}"
         # Convert refs into slugs (allow . for ~v1.2.0)
         ref_slug=$(echo $ref \
           | tr '[:upper:]' '[:lower:]' \
           | sed -E 's/[^a-z0-9.]+/-/g' \
           | sed -E 's/^-+|-+$//g')
+        echo "CHART_REF_SLUG=$ref_slug" >> $GITHUB_ENV
+        echo "REF_SLUG=$ref_slug" >> $GITHUB_ENV
 
+    - name: Set release version
+      shell: bash
+      run: |
+        echo "[DEBUG]: Setting release version.."
         # If ref name is SEMVER-like, use it for release version
-        if [[ $ref_slug =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-          release_version="$ref_slug"
+        if [[ $REF_SLUG =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          release_version="$REF_SLUG"
         else
-          release_version="$image_tag"
+          release_version="$IMAGE_TAG"
         fi
+        echo "RELEASE_VERSION=$release_version" >> $GITHUB_ENV
 
+    - name: Set helm values
+      shell: bash
+      run: |
+        echo "[DEBUG]: Setting helm values.."
         # Use custom values yaml file if exists. Otherwise, use values.dev.yaml
         envs_with_values="${{ inputs.envs_with_values }}"
         envs_with_values_regex=${envs_with_values//,/|}
-        if [[ "${env}" = @($envs_with_values_regex) ]]; then
+        if [[ "${ENV}" = @($envs_with_values_regex) ]]; then
           helm_values="values.$ENV.yaml"
         else
           helm_values="values.dev.yaml"
         fi
-
-        #  IMAGE_TAG, ENV, NAMESPACE, CHART_REF_SLUG, RELEASE_VERSION, CHART_PATH
-
-        # Build GitHub environment variables
-        echo "IMAGE_TAG=$image_tag" >> $GITHUB_ENV
-        echo "CHART_PATH="$chart_path" >> $GITHUB_ENV
-        echo "CHART_REF_SLUG=$ref_slug" >> $GITHUB_ENV
-        echo "ENV=$env" >> $GITHUB_ENV
-        echo "RELEASE_VERSION=$release_version" >> $GITHUB_ENV
-        echo "HELM_RELEASE=app-$APP-$ENV" >> $GITHUB_ENV
         echo "HELM_VALUES=$helm_values" >> $GITHUB_ENV
-        echo "NAMESPACE=app-$APP-$ENV" >> $GITHUB_ENV
 
     - name: Update helm chart appVersion to the deployed image sha
       shell: bash
