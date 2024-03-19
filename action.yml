@@ -123,6 +123,7 @@ runs:
           --values="$CHART_PATH/$VALUES_FILE" \
           $CHART_PATH 1>&2
 
+    # TODO: what about this?
     # Must be after lint. Helm expects version and appVersion to follow strict SemVer
     # - name: Update helm chart appVersion to the deployed image sha
     #   shell: bash
@@ -147,3 +148,17 @@ runs:
           --set env="$ENV" \
           --namespace="$NAMESPACE" \
           --install --wait --atomic --create-namespace
+
+    - name: Debug failed deployment
+      if: failure()
+      shell: bash
+      run: |
+        # List all pod names in the namespace
+        PODS=$(kubectl get pods -n $NAMESPACE -o jsonpath="{.items[*].metadata.name}")
+        for POD in $PODS; do
+          echo "[DEBUG] Logs for pod $POD:"
+          kubectl logs -n $NAMESPACE $POD --timestamps=true --prefix=true --ignore-errors --all-containers
+        done
+        
+        echo "[DEBUG] Events (Warning) for namespace $NAMESPACE:"
+        kubectl events -n $NAMESPACE --sort-by='.metadata.creationTimestamp' --types=Warning
