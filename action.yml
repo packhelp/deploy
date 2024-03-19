@@ -53,7 +53,7 @@ runs:
           echo "[ERROR] File $envs_file does not exist. Please create $envs_file file in $CHART_PATH.."
           echo "[ERROR] Example: https://gist.github.com/awinecki/bdfc59bba671e947bf511122cb8a8a7e"
         fi
-        
+
         cluster=$(cat $CHART_PATH/$envs_file | yq .$ENV.cluster)
         values_file=$(cat $CHART_PATH/$envs_file | yq .$ENV.values)
 
@@ -123,18 +123,6 @@ runs:
           --values="$CHART_PATH/$VALUES_FILE" \
           $CHART_PATH 1>&2
 
-    # TODO: what about this?
-    # Must be after lint. Helm expects version and appVersion to follow strict SemVer
-    # - name: Update helm chart appVersion to the deployed image sha
-    #   shell: bash
-    #   run: |
-    #     # Updating helm cart version to REF_SLUG and RELEASE_VERSION..
-    #     sed -i \
-    #       "s/^version:.*$/version: $CHART_REF_SLUG/" $CHART_PATH/Chart.yaml
-    #     sed -i \
-    #       "s/^appVersion:.*$/appVersion: $RELEASE_VERSION/" $CHART_PATH/Chart.yaml
-    #     echo "[INFO] Replaced Chart.yaml version to $REF_SLUG and appVersion to $RELEASE_VERSION.."
-
     - name: Helm deploy
       shell: bash
       run: |
@@ -146,7 +134,7 @@ runs:
           --set version="$RELEASE_VERSION" \
           --set envName="$ENV" \
           --set env="$ENV" \
-          --timeout "30s" \
+          --timeout "3m0s" \
           --namespace="$NAMESPACE" \
           --install --wait --atomic --create-namespace
 
@@ -160,6 +148,6 @@ runs:
           echo "[DEBUG] Logs for pod $POD:"
           kubectl logs -n $NAMESPACE $POD --timestamps=true --prefix=true --ignore-errors --all-containers
         done
-        
+
         echo "[DEBUG] Events (Warning) for namespace $NAMESPACE:"
         kubectl events -n $NAMESPACE --types=Warning
