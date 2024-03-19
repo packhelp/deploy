@@ -97,7 +97,6 @@ runs:
       with:
         kubeconfig: "${{ inputs.kubeconfig_np }}"
         exec: |
-          # Linting helm chart..
           echo "[INFO] Linting helm chart.."
           helm lint --strict \
             --set image.tag="$IMAGE_TAG" \
@@ -113,7 +112,6 @@ runs:
       with:
         kubeconfig: "${{ inputs.kubeconfig_pr }}"
         exec: |
-          # Linting helm chart..
           echo "[INFO] Linting helm chart.."
           helm lint --strict \
             --set image.tag="$IMAGE_TAG" \
@@ -140,7 +138,6 @@ runs:
       with:
         kubeconfig: "${{ inputs.kubeconfig_np }}"
         exec: |
-          # Deploying helm chart..
           echo "[INFO] Deploying helm chart.."
           helm upgrade $HELM_RELEASE \
             $CHART_PATH \
@@ -158,7 +155,6 @@ runs:
       with:
         kubeconfig: "${{ inputs.kubeconfig_pr }}"
         exec: |
-          # Deploying helm chart..
           echo "[INFO] Deploying helm chart.."
           helm upgrade $HELM_RELEASE \
             $CHART_PATH \
