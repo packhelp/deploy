@@ -42,9 +42,6 @@ runs:
         echo "HELM_RELEASE=app-$app-$env" >> $GITHUB_ENV
         echo "NAMESPACE=app-$app-$env" >> $GITHUB_ENV
 
-    - name: Setup yq
-      uses: chrisdickinson/setup-yq@latest
-
     - name: Check for envs.yaml file, set up cluster and values file
       shell: bash
       run: |
@@ -56,6 +53,8 @@ runs:
           echo "[ERROR] File $envs_file does not exist. Please create $envs_file file in $CHART_PATH.."
           echo "[ERROR] Example: https://gist.github.com/awinecki/bdfc59bba671e947bf511122cb8a8a7e"
         fi
+        
+        yq --version
 
         cluster=$(cat $CHART_PATH/$envs_file | yq .$ENV.cluster -)
         values_file=$(cat $CHART_PATH/$envs_file | yq .$ENV.values -)
