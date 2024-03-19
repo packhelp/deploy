@@ -10,42 +10,102 @@ inputs:
   cluster:
     description: 'K8s cluster to deploy to'
     required: true
+  chart_path:
+    description: 'Custom helm chart directory path'
+    default: "helm-chart"
+    required: false
   # image_tag:
   #   description: 'Override image tag to deploy'
   #   required: false
-  # helm_chart:
-  #   description: 'Override helm chart directory path'
-  #   required: false
-outputs:
-  random-number:
-    description: "Random number"
-    value: ${{ steps.random-number-generator.outputs.random-number }}
+
 runs:
   using: "composite"
   steps:
-    - name: Set Greeting
-      run: echo "Hello $INPUT_WHO_TO_GREET."
+    - name: Print inputs
       shell: bash
-      env:
-        INPUT_WHO_TO_GREET: John
-
-    - name: Show input params
       run: |
-        echo "app: ${{ inputs.app }}"
-        echo "env: ${{ inputs.env }}"
-        echo "cluster: ${{ inputs.cluster }}"
-      shell: bash
+        echo "[DEBUG] app: ${{ inputs.app }}"
+        echo "[DEBUG] env: ${{ inputs.env }}"
+        echo "[DEBUG] cluster: ${{ inputs.cluster }}"
+        echo "[DEBUG] chart_path: ${{ inputs.cluster }}"
 
-    - name: Random Number Generator
-      id: random-number-generator
-      run: echo "random-number=$(echo $RANDOM)" >> $GITHUB_OUTPUT
+    - name: Extract & prepare helm chart params
       shell: bash
+      run: |
+        image_tag="${{ github.sha }}"
+        ref="${{ github.ref_name || github.event.release.tag_name }}"
+        env="${{ inputs.env }}"
+        chart_path="${{ inputs.chart_path }}"
 
-    - name: Set GitHub Path
-      run: echo "$GITHUB_ACTION_PATH" >> $GITHUB_PATH
+        # Convert refs into slugs (allow . for ~v1.2.0)
+        ref_slug=$(echo $ref \
+          | tr '[:upper:]' '[:lower:]' \
+          | sed -E 's/[^a-z0-9.]+/-/g' \
+          | sed -E 's/^-+|-+$//g')
+
+        # If ref name is SEMVER-like, use it for release version
+        if [[ $ref_slug =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          release_version="$ref_slug"
+        else
+          release_version="$image_tag"
+        fi
+
+        # Use custom values yaml file if exists. Otherwise, use values.dev.yaml
+        envs_with_values="${{ inputs.envs_with_values }}"
+        envs_with_values_regex=${envs_with_values//,/|}
+        if [[ "${env}" = @($envs_with_values_regex) ]]; then
+          helm_values="values.$ENV.yaml"
+        else
+          helm_values="values.dev.yaml"
+        fi
+
+        #  IMAGE_TAG, ENV, NAMESPACE, CHART_REF_SLUG, RELEASE_VERSION, CHART_PATH
+
+        # Build GitHub environment variables
+        echo "IMAGE_TAG=$image_tag" >> $GITHUB_ENV
+        echo "CHART_PATH="$chart_path" >> $GITHUB_ENV
+        echo "CHART_REF_SLUG=$ref_slug" >> $GITHUB_ENV
+        echo "ENV=$env" >> $GITHUB_ENV
+        echo "RELEASE_VERSION=$release_version" >> $GITHUB_ENV
+        echo "HELM_RELEASE=app-$APP-$ENV" >> $GITHUB_ENV
+        echo "HELM_VALUES=$helm_values" >> $GITHUB_ENV
+        echo "NAMESPACE=app-$APP-$ENV" >> $GITHUB_ENV
+
+    - name: Update helm chart appVersion to the deployed image sha
       shell: bash
-      env:
-        GITHUB_ACTION_PATH: ${{ github.action_path }}
+      run: |
+        sed -i \
+          "s/^version:.*$/version: $CHART_REF_SLUG/" $CHART_PATH/Chart.yaml
+        sed -i \
+          "s/^appVersion:.*$/appVersion: $RELEASE_VERSION/" $CHART_PATH/Chart.yaml
+
+    - name: Helm lint [np]
+      if: ${{ inputs.cluster == 'np' }}
+      uses: WyriHaximus/github-action-helm3@v2
+      with:
+        kubeconfig: "${{ inputs.kubeconfig_np }}"
+        exec: |
+          helm lint --strict \
+            --set image.tag="$IMAGE_TAG" \
+            --set envName="$ENV" \
+            --set env="$ENV" \
+            --namespace="$NAMESPACE" \
+            --values="$CHART_PATH/$HELM_VALUES" \
+            $CHART_PATH 1>&2
+
+    - name: Helm lint [pr]
+      if: ${{ inputs.cluster == 'np' }}
+      uses: WyriHaximus/github-action-helm3@v2
+      with:
+        kubeconfig: "${{ inputs.kubeconfig_pr }}"
+        exec: |
+          helm lint --strict \
+            --set image.tag="$IMAGE_TAG" \
+            --set envName="$ENV" \
+            --set env="$ENV" \
+            --namespace="$NAMESPACE" \
+            --values="$CHART_PATH/$HELM_VALUES" \
+            $CHART_PATH 1>&2
 
     - name: Run goodbye.sh
       run: goodbye.sh
