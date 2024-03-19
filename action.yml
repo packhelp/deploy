@@ -1,31 +1,22 @@
-name: 'Hello World'
-description: 'Greet someone'
+name: "Deploy Packhelp app"
+description: "Deploy via helm to a Kubernetes cluster"
 inputs:
   app:
-    description: 'Application to deploy'
+    description: "Application to deploy"
     required: true
   env:
-    description: 'Environment (staging, production)'
-    required: true
-  cluster:
-    description: 'K8s cluster to deploy to'
+    description: "Environment (staging, production)"
     required: true
   chart_path:
-    description: 'Custom helm chart directory path'
+    description: "Custom helm chart directory path"
     default: "helm-chart"
     required: false
-  envs_with_values:
-    description: 'Comma separated list of envs that have custom values.yaml files'
-    required: false
   kubeconfig_pr:
-    description: 'Kubeconfig for PR cluster'
+    description: "Kubeconfig for PR cluster"
     required: false
   kubeconfig_np:
-    description: 'Kubeconfig for NP cluster'
+    description: "Kubeconfig for NP cluster"
     required: false
-  # image_tag:
-  #   description: 'Override image tag to deploy'
-  #   required: false
 
 runs:
   using: "composite"
@@ -38,7 +29,6 @@ runs:
         echo "[INFO] env: ${{ inputs.env }}"
         echo "[INFO] cluster: ${{ inputs.cluster }}"
         echo "[INFO] chart_path: ${{ inputs.chart_path }}"
-        echo "[INFO] envs_with_values: ${{ inputs.envs_with_values }}"
 
     - name: Set base helm parameters
       shell: bash
@@ -51,6 +41,33 @@ runs:
         echo "CHART_PATH=${{ inputs.chart_path }}" >> $GITHUB_ENV
         echo "HELM_RELEASE=app-$app-$env" >> $GITHUB_ENV
         echo "NAMESPACE=app-$app-$env" >> $GITHUB_ENV
+
+    - name: Check for envs.yaml file, set up cluster and values file
+      shell: bash
+      run: |
+        # Checking envs.yaml config and setting up cluster and values file..
+        envs_file="envs.yaml"
+        if [ -f $CHART_PATH/$envs_file ]; then
+          echo "[INFO] File $envs_file exists.."
+        else
+          echo "[ERROR] File $envs_file does not exist. Please create $envs_file file in $CHART_PATH.."
+          echo "[ERROR] Example: https://gist.github.com/awinecki/bdfc59bba671e947bf511122cb8a8a7e"
+        fi
+
+        cluster=$(cat $CHART_PATH/$envs_file | yq .$env.cluster)
+        values_file=$(cat $CHART_PATH/$envs_file | yq .$env.values)
+
+        if [[ $cluster == "null"]]; then
+          echo "[INFO] Env not found in $envs_file. Using default cluster.."
+          cluster=$(cat $CHART_PATH/$envs_file | yq .default.cluster)
+        fi
+        if [[ $values_file == "null"]]; then
+          echo "[INFO] Env not found in $envs_file. Using default values file.."
+          values_file=$(cat $CHART_PATH/$envs_file | yq .default.values)
+        fi
+
+        echo "CLUSTER=$cluster" >> $GITHUB_ENV
+        echo "VALUES_FILE=$values_file" >> $GITHUB_ENV
 
     - name: Set ref slug and chart ref slug
       shell: bash
@@ -76,20 +93,6 @@ runs:
           release_version="$IMAGE_TAG"
         fi
         echo "RELEASE_VERSION=$release_version" >> $GITHUB_ENV
-
-    - name: Set helm values
-      shell: bash
-      run: |
-        # Setting helm values..
-        # Use custom values yaml file if exists. Otherwise, use values.dev.yaml
-        envs_with_values="${{ inputs.envs_with_values }}"
-        envs_with_values_regex=${envs_with_values//,/|}
-        if [[ "${ENV}" = @($envs_with_values_regex) ]]; then
-          helm_values="values.$ENV.yaml"
-        else
-          helm_values="values.dev.yaml"
-        fi
-        echo "HELM_VALUES=$helm_values" >> $GITHUB_ENV
 
     - name: Setup helm
       uses: azure/setup-helm@v4
@@ -117,7 +120,7 @@ runs:
           --set envName="$ENV" \
           --set env="$ENV" \
           --namespace="$NAMESPACE" \
-          --values="$CHART_PATH/$HELM_VALUES" \
+          --values="$CHART_PATH/$VALUES_FILE" \
           $CHART_PATH 1>&2
 
     # Must be after lint. Helm expects version and appVersion to follow strict SemVer
@@ -137,7 +140,7 @@ runs:
         # Deploying helm chart..
         helm upgrade $HELM_RELEASE \
           $CHART_PATH \
-          --values="$CHART_PATH/$HELM_VALUES" \
+          --values="$CHART_PATH/$VALUES_FILE" \
           --set image.tag="$IMAGE_TAG" \
           --set version="$RELEASE_VERSION" \
           --set envName="$ENV" \
