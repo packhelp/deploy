@@ -121,15 +121,15 @@ runs:
           $CHART_PATH 1>&2
 
     # Must be after lint. Helm expects version and appVersion to follow strict SemVer
-    - name: Update helm chart appVersion to the deployed image sha
-      shell: bash
-      run: |
-        # Updating helm cart version to REF_SLUG and RELEASE_VERSION..
-        sed -i \
-          "s/^version:.*$/version: $CHART_REF_SLUG/" $CHART_PATH/Chart.yaml
-        sed -i \
-          "s/^appVersion:.*$/appVersion: $RELEASE_VERSION/" $CHART_PATH/Chart.yaml
-        echo "[INFO] Replaced Chart.yaml version to $REF_SLUG and appVersion to $RELEASE_VERSION.."
+    # - name: Update helm chart appVersion to the deployed image sha
+    #   shell: bash
+    #   run: |
+    #     # Updating helm cart version to REF_SLUG and RELEASE_VERSION..
+    #     sed -i \
+    #       "s/^version:.*$/version: $CHART_REF_SLUG/" $CHART_PATH/Chart.yaml
+    #     sed -i \
+    #       "s/^appVersion:.*$/appVersion: $RELEASE_VERSION/" $CHART_PATH/Chart.yaml
+    #     echo "[INFO] Replaced Chart.yaml version to $REF_SLUG and appVersion to $RELEASE_VERSION.."
 
     - name: Helm deploy
       shell: bash
