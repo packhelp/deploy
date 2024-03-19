@@ -57,16 +57,16 @@ runs:
           echo "[ERROR] Example: https://gist.github.com/awinecki/bdfc59bba671e947bf511122cb8a8a7e"
         fi
 
-        cluster=$(cat $CHART_PATH/$envs_file | yq e .$ENV.cluster -)
-        values_file=$(cat $CHART_PATH/$envs_file | yq e .$ENV.values -)
+        cluster=$(cat $CHART_PATH/$envs_file | yq .$ENV.cluster -)
+        values_file=$(cat $CHART_PATH/$envs_file | yq .$ENV.values -)
 
         if [[ $cluster == "null" ]]; then
           echo "[INFO] Env not found in $envs_file. Using default cluster.."
-          cluster=$(cat $CHART_PATH/$envs_file | yq e .default.cluster -)
+          cluster=$(cat $CHART_PATH/$envs_file | yq .default.cluster -)
         fi
         if [[ $values_file == "null" ]]; then
           echo "[INFO] Env not found in $envs_file. Using default values file.."
-          values_file=$(cat $CHART_PATH/$envs_file | yq e .default.values -)
+          values_file=$(cat $CHART_PATH/$envs_file | yq .default.values -)
         fi
 
         echo "CLUSTER=$cluster" >> $GITHUB_ENV
