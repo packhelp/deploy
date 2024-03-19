@@ -91,33 +91,34 @@ runs:
         fi
         echo "HELM_VALUES=$helm_values" >> $GITHUB_ENV
 
-    - name: Helm lint [np]
-      if: ${{ inputs.cluster == 'np' }}
-      uses: WyriHaximus/github-action-helm3@v3
-      with:
-        kubeconfig: "${{ inputs.kubeconfig_np }}"
-        exec: |
-          helm lint --strict \
-            --set image.tag="$IMAGE_TAG" \
-            --set envName="$ENV" \
-            --set env="$ENV" \
-            --namespace="$NAMESPACE" \
-            --values="$CHART_PATH/$HELM_VALUES" \
-            $CHART_PATH 1>&2
+    - name: Setup helm
+      uses: azure/setup-helm@v4
 
-    - name: Helm lint [pr]
+    - name: Set k8s context to PR
       if: ${{ inputs.cluster == 'pr' }}
-      uses: WyriHaximus/github-action-helm3@v3
+      uses: azure/k8s-set-context@v4
       with:
+        method: kubeconfig
         kubeconfig: "${{ inputs.kubeconfig_pr }}"
-        exec: |
-          helm lint --strict \
-            --set image.tag="$IMAGE_TAG" \
-            --set envName="$ENV" \
-            --set env="$ENV" \
-            --namespace="$NAMESPACE" \
-            --values="$CHART_PATH/$HELM_VALUES" \
-            $CHART_PATH 1>&2
+
+    - name: Set k8s context to NP
+      if: ${{ inputs.cluster == 'np' }}
+      uses: azure/k8s-set-context@v4
+      with:
+        method: kubeconfig
+        kubeconfig: "${{ inputs.kubeconfig_np }}"
+
+    - name: Helm lint
+      shell: bash
+      run: |
+        # Linting helm chart..
+        helm lint --strict \
+          --set image.tag="$IMAGE_TAG" \
+          --set envName="$ENV" \
+          --set env="$ENV" \
+          --namespace="$NAMESPACE" \
+          --values="$CHART_PATH/$HELM_VALUES" \
+          $CHART_PATH 1>&2
 
     # Must be after lint. Helm expects version and appVersion to follow strict SemVer
     - name: Update helm chart appVersion to the deployed image sha
@@ -130,34 +131,16 @@ runs:
           "s/^appVersion:.*$/appVersion: $RELEASE_VERSION/" $CHART_PATH/Chart.yaml
         echo "[INFO] Replaced Chart.yaml version to $REF_SLUG and appVersion to $RELEASE_VERSION.."
 
-    - name: Helm deploy [np]
-      if: ${{ inputs.cluster == 'np' }}
+    - name: Helm deploy
       uses: WyriHaximus/github-action-helm3@v3
-      with:
-        kubeconfig: "${{ inputs.kubeconfig_np }}"
-        exec: |
-          helm upgrade $HELM_RELEASE \
-            $CHART_PATH \
-            --values="$CHART_PATH/$HELM_VALUES" \
-            --set image.tag="$IMAGE_TAG" \
-            --set version="$RELEASE_VERSION" \
-            --set envName="$ENV" \
-            --set env="$ENV" \
-            --namespace="$NAMESPACE" \
-            --install --wait --atomic --create-namespace
-
-    - name: Helm deploy [pr]
-      if: ${{ inputs.cluster == 'pr' }}
-      uses: WyriHaximus/github-action-helm3@v3
-      with:
-        kubeconfig: "${{ inputs.kubeconfig_pr }}"
-        exec: |
-          helm upgrade $HELM_RELEASE \
-            $CHART_PATH \
-            --values="$CHART_PATH/$HELM_VALUES" \
-            --set image.tag="$IMAGE_TAG" \
-            --set version="$RELEASE_VERSION" \
-            --set envName="$ENV" \
-            --set env="$ENV" \
-            --namespace="$NAMESPACE" \
-            --install --wait --atomic --create-namespace
+      run: |
+        # Deploying helm chart..
+        helm upgrade $HELM_RELEASE \
+          $CHART_PATH \
+          --values="$CHART_PATH/$HELM_VALUES" \
+          --set image.tag="$IMAGE_TAG" \
+          --set version="$RELEASE_VERSION" \
+          --set envName="$ENV" \
+          --set env="$ENV" \
+          --namespace="$NAMESPACE" \
+          --install --wait --atomic --create-namespace
