@@ -33,6 +33,7 @@ runs:
     - name: Print inputs
       shell: bash
       run: |
+        # Debug input values
         echo "[DEBUG] app: ${{ inputs.app }}"
         echo "[DEBUG] env: ${{ inputs.env }}"
         echo "[DEBUG] cluster: ${{ inputs.cluster }}"
@@ -118,10 +119,6 @@ runs:
             --values="$CHART_PATH/$HELM_VALUES" \
             $CHART_PATH 1>&2
 
-    - name: Run goodbye.sh
-      run: goodbye.sh
-      shell: bash
-
     # Must be after lint. Helm expects version and appVersion to follow strict SemVer
     - name: Update helm chart appVersion to the deployed image sha
       shell: bash
@@ -130,3 +127,35 @@ runs:
           "s/^version:.*$/version: $CHART_REF_SLUG/" $CHART_PATH/Chart.yaml
         sed -i \
           "s/^appVersion:.*$/appVersion: $RELEASE_VERSION/" $CHART_PATH/Chart.yaml
+
+    - name: Helm deploy [np]
+      if: ${{ inputs.cluster == 'np' }}
+      uses: WyriHaximus/github-action-helm3@v2
+      with:
+        kubeconfig: "${{ inputs.kubeconfig_np }}"
+        exec: |
+          helm upgrade $HELM_RELEASE \
+            $CHART_PATH \
+            --values="$CHART_PATH/$HELM_VALUES" \
+            --set image.tag="$IMAGE_TAG" \
+            --set version="$RELEASE_VERSION" \
+            --set envName="$ENV" \
+            --set env="$ENV" \
+            --namespace="$NAMESPACE" \
+            --install --wait --atomic --create-namespace
+
+    - name: Helm deploy [pr]
+      if: ${{ inputs.cluster == 'pr' }}
+      uses: WyriHaximus/github-action-helm3@v2
+      with:
+        kubeconfig: "${{ inputs.kubeconfig_pr }}"
+        exec: |
+          helm upgrade $HELM_RELEASE \
+            $CHART_PATH \
+            --values="$CHART_PATH/$HELM_VALUES" \
+            --set image.tag="$IMAGE_TAG" \
+            --set version="$RELEASE_VERSION" \
+            --set envName="$ENV" \
+            --set env="$ENV" \
+            --namespace="$NAMESPACE" \
+            --install --wait --atomic --create-namespace
