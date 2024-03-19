@@ -57,8 +57,8 @@ runs:
           echo "[ERROR] Example: https://gist.github.com/awinecki/bdfc59bba671e947bf511122cb8a8a7e"
         fi
 
-        cluster=$(cat $CHART_PATH/$envs_file | yq .$env.cluster)
-        values_file=$(cat $CHART_PATH/$envs_file | yq .$env.values)
+        cluster=$(cat $CHART_PATH/$envs_file | yq .$ENV.cluster)
+        values_file=$(cat $CHART_PATH/$envs_file | yq .$ENV.values)
 
         if [[ $cluster == "null" ]]; then
           echo "[INFO] Env not found in $envs_file. Using default cluster.."
