@@ -93,7 +93,7 @@ runs:
 
     - name: Helm lint [np]
       if: ${{ inputs.cluster == 'np' }}
-      uses: WyriHaximus/github-action-helm3@v2
+      uses: WyriHaximus/github-action-helm3@v3
       with:
         kubeconfig: "${{ inputs.kubeconfig_np }}"
         exec: |
@@ -108,7 +108,7 @@ runs:
 
     - name: Helm lint [pr]
       if: ${{ inputs.cluster == 'pr' }}
-      uses: WyriHaximus/github-action-helm3@v2
+      uses: WyriHaximus/github-action-helm3@v3
       with:
         kubeconfig: "${{ inputs.kubeconfig_pr }}"
         exec: |
@@ -134,11 +134,10 @@ runs:
 
     - name: Helm deploy [np]
       if: ${{ inputs.cluster == 'np' }}
-      uses: WyriHaximus/github-action-helm3@v2
+      uses: WyriHaximus/github-action-helm3@v3
       with:
         kubeconfig: "${{ inputs.kubeconfig_np }}"
         exec: |
-          echo "[INFO] Deploying helm chart.."
           helm upgrade $HELM_RELEASE \
             $CHART_PATH \
             --values="$CHART_PATH/$HELM_VALUES" \
@@ -151,7 +150,7 @@ runs:
 
     - name: Helm deploy [pr]
       if: ${{ inputs.cluster == 'pr' }}
-      uses: WyriHaximus/github-action-helm3@v2
+      uses: WyriHaximus/github-action-helm3@v3
       with:
         kubeconfig: "${{ inputs.kubeconfig_pr }}"
         exec: |
