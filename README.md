@@ -163,8 +163,8 @@ jobs:
           app: myapp
           env: ${{ env.ENV || inputs.env }}
           release_version: ${{ github.event.release.tag_name || github.sha }}
-          kubeconfig_np: "${{ secrets.KUBECONFIG_K8S_NP }}"
-          kubeconfig_pr: "${{ secrets.KUBECONFIG_K8S_PR }}"
+          kubeconfig_np: "${{ secrets.<np_cluster_kubeconfig> }}"
+          kubeconfig_pr: "${{ secrets.<pr_cluster_kubeconfig> }}"
 
 
 ```
