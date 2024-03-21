@@ -11,6 +11,9 @@ inputs:
     description: "Custom helm chart directory path"
     default: "helm-chart"
     required: false
+  release_version:
+    description: "Release version parameter to pass to helm"
+    required: false
   kubeconfig_pr:
     description: "Kubeconfig for PR cluster"
     required: false
@@ -69,28 +72,13 @@ runs:
         echo "CLUSTER=$cluster" >> $GITHUB_ENV
         echo "VALUES_FILE=$values_file" >> $GITHUB_ENV
 
-    - name: Set ref slug and chart ref slug
-      shell: bash
-      run: |
-        # Setting ref slug and chart ref slug..
-        ref="${{ github.ref_name || github.event.release.tag_name }}"
-        # Convert refs into slugs (allow . for ~v1.2.0)
-        ref_slug=$(echo $ref \
-          | tr '[:upper:]' '[:lower:]' \
-          | sed -E 's/[^a-z0-9.]+/-/g' \
-          | sed -E 's/^-+|-+$//g')
-        echo "CHART_REF_SLUG=$ref_slug" >> $GITHUB_ENV
-        echo "REF_SLUG=$ref_slug" >> $GITHUB_ENV
-
     - name: Set release version
       shell: bash
       run: |
         # Setting release version..
-        # If ref name is SEMVER-like, use it for release version
-        if [[ $REF_SLUG =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-          release_version="$REF_SLUG"
-        else
-          release_version="$IMAGE_TAG"
+        release_version="${{ inputs.release_version }}"
+        if [[ -z $release_version ]]; then
+          release_version="${{ github.sha }}"
         fi
         echo "RELEASE_VERSION=$release_version" >> $GITHUB_ENV
 
