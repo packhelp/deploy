@@ -79,6 +79,12 @@ runs:
         release_version="${{ inputs.release_version }}"
         if [[ -z $release_version ]]; then
           release_version="${{ github.sha }}"
+        else
+          # Slugify release version
+          release_version=$(echo $release_version \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed -E 's/[^a-z0-9.]+/-/g' \
+            | sed -E 's/^-+|-+$//g')
         fi
         echo "RELEASE_VERSION=$release_version" >> $GITHUB_ENV
 
