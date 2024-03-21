@@ -30,8 +30,8 @@ runs:
         # Debug input values
         echo "[INFO] app: ${{ inputs.app }}"
         echo "[INFO] env: ${{ inputs.env }}"
-        echo "[INFO] cluster: ${{ inputs.cluster }}"
         echo "[INFO] chart_path: ${{ inputs.chart_path }}"
+        echo "[INFO] release_version: ${{ inputs.chart_path }}"
 
     - name: Set base helm parameters
       shell: bash
@@ -75,7 +75,7 @@ runs:
     - name: Set release version
       shell: bash
       run: |
-        # Setting release version..
+        # Setting release version. From inputs, or github.sha if not provided..
         release_version="${{ inputs.release_version }}"
         if [[ -z $release_version ]]; then
           release_version="${{ github.sha }}"
