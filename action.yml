@@ -49,6 +49,11 @@ runs:
       shell: bash
       run: |
         # Checking envs.yaml config and setting up cluster and values file..
+        if [[ -z $ENV ]]; then
+          echo "[ERROR] ENV is not set. Please provide ENV input.."
+          exit 1
+        fi
+        
         envs_file="envs.yaml"
         if [ -f $CHART_PATH/$envs_file ]; then
           echo "[INFO] File $envs_file exists.."
