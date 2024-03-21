@@ -31,7 +31,7 @@ runs:
         echo "[INFO] app: ${{ inputs.app }}"
         echo "[INFO] env: ${{ inputs.env }}"
         echo "[INFO] chart_path: ${{ inputs.chart_path }}"
-        echo "[INFO] release_version: ${{ inputs.chart_path }}"
+        echo "[INFO] release_version: ${{ inputs.release_version }}"
 
     - name: Set base helm parameters
       shell: bash
