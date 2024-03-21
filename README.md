@@ -111,7 +111,7 @@ jobs:
         with:
           app: myapp
           env: production
-					release_version: ${{ github.event.release.tag_name }}
+          release_version: ${{ github.event.release.tag_name }}
           kubeconfig_np: "${{ secrets.<np_cluster_kubeconfig> }}"
           kubeconfig_pr: "${{ secrets.<pr_cluster_kubeconfig> }}"
 ```
