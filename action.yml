@@ -49,12 +49,22 @@ runs:
       shell: bash
       run: |
         # Checking envs.yaml config and setting up cluster and values file..
+        envs_file="envs.yaml"
+
+        # Check if ENV is set
         if [[ -z $ENV ]]; then
           echo "[ERROR] ENV is not set. Please provide ENV input.."
           exit 1
         fi
-        
-        envs_file="envs.yaml"
+
+        # Let's test for env existence in file envs.yaml with the command grep -Fxq "$ENV" envs.yaml
+        if grep -Fxq "$ENV" $CHART_PATH/$envs_file; then
+          echo "[INFO] Env $ENV found in $CHART_PATH/$envs_file.."
+        else
+          echo "[ERROR] Env $ENV not found in $CHART_PATH/$envs_file.."
+          exit 1
+        fi
+
         if [ -f $CHART_PATH/$envs_file ]; then
           echo "[INFO] File $envs_file exists.."
         else
