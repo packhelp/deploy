@@ -57,14 +57,6 @@ runs:
           exit 1
         fi
 
-        # Let's test for env existence in file envs.yaml with the command grep -Fxq "$ENV" envs.yaml
-        if grep -Fxq "$ENV" $CHART_PATH/$envs_file; then
-          echo "[INFO] Env $ENV found in $CHART_PATH/$envs_file.."
-        else
-          echo "[ERROR] Env $ENV not found in $CHART_PATH/$envs_file.."
-          exit 1
-        fi
-
         if [ -f $CHART_PATH/$envs_file ]; then
           echo "[INFO] File $envs_file exists.."
         else
