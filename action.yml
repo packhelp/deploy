@@ -93,6 +93,7 @@ runs:
             | sed -E 's/[^a-z0-9.]+/-/g' \
             | sed -E 's/^-+|-+$//g')
         fi
+        echo "[INFO] Setting release version to $release_version.."
         echo "RELEASE_VERSION=$release_version" >> $GITHUB_ENV
 
     - name: Setup helm
