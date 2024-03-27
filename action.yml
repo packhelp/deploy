@@ -70,6 +70,7 @@ runs:
 
         cluster=$(cat $CHART_PATH/$envs_file | yq .$ENV.cluster)
         values_file=$(cat $CHART_PATH/$envs_file | yq .$ENV.values)
+        custom_namespace=$(cat $CHART_PATH/$envs_file | yq .$ENV.namespace)
 
         if [[ $cluster == "null" ]]; then
           echo "[INFO] Env not found in $envs_file. Using default cluster.."
@@ -78,6 +79,10 @@ runs:
         if [[ $values_file == "null" ]]; then
           echo "[INFO] Env not found in $envs_file. Using default values file.."
           values_file=$(cat $CHART_PATH/$envs_file | yq .default.values)
+        fi
+        if [[ $custom_namespace != "null" ]]; then
+          echo "[INFO] Overriding namespace to $custom_namespace found in $envs_file.."
+          echo "NAMESPACE=$custom_namespace" >> $GITHUB_ENV
         fi
 
         echo "CLUSTER=$cluster" >> $GITHUB_ENV
