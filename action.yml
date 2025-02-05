@@ -24,9 +24,14 @@ inputs:
     description: "Kubeconfig for NP cluster"
     required: false
 
+# TODO: Remove envName parameter from helm upgrade scripts
+# Once it's been replaced in all apps' helm charts to just `env`
+
 runs:
   using: "composite"
   steps:
+    - uses: actions/checkout@v4
+
     - name: Print inputs
       shell: bash
       run: |
