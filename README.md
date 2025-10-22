@@ -44,7 +44,7 @@ jobs:
     ... # build Docker image and push to registry
   deploy:
     name: Deploy to Kubernetes
-    runs-on: [self-hosted, deploy-blue]
+    runs-on: [self-hosted, deploy]
     needs: [build]
     steps:
       - uses: actions/checkout@v4
@@ -74,7 +74,7 @@ jobs:
     ... # build Docker image and push to registry
   deploy:
     name: Deploy to Kubernetes
-    runs-on: [self-hosted, deploy-blue]
+    runs-on: [self-hosted, deploy]
     needs: [build]
     steps:
       - uses: actions/checkout@v4
@@ -103,7 +103,7 @@ jobs:
     ... # build Docker image and push to registry
   deploy:
     name: Deploy to Kubernetes
-    runs-on: [self-hosted, deploy-blue]
+    runs-on: [self-hosted, deploy]
     needs: [build]
     steps:
       - uses: actions/checkout@v4
@@ -148,7 +148,7 @@ jobs:
     ... # build Docker image and push to registry
   deploy:
     name: Deploy to Kubernetes
-    runs-on: [self-hosted, deploy-blue]
+    runs-on: [self-hosted, deploy]
     needs: [build]
     steps:
       - uses: actions/checkout@v4
