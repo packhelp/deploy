@@ -1,5 +1,5 @@
 name: "Deploy Packhelp app"
-description: "Deploy via helm to a Kubernetes cluster"
+description: "Deploy via helm to a Kubernetes cluster. Supports classic helm charts and pre-rendered manifests."
 inputs:
   app:
     description: "Application to deploy"
@@ -23,9 +23,14 @@ inputs:
   kubeconfig_np:
     description: "Kubeconfig for NP cluster"
     required: false
-
-# TODO: Remove envName parameter from helm upgrade scripts
-# Once it's been replaced in all apps' helm charts to just `env`
+  # --- New inputs for pre-rendered mode ---
+  mode:
+    description: "Deployment mode: 'classic' (default) or 'prerendered'. In prerendered mode, manifests_path must contain ready-to-apply YAML files."
+    default: "classic"
+    required: false
+  manifests_path:
+    description: "Path to directory containing pre-rendered K8s manifests (only used in 'prerendered' mode)"
+    required: false
 
 runs:
   using: "composite"
@@ -38,7 +43,9 @@ runs:
         # Debug input values
         echo "[INFO] app: ${{ inputs.app }}"
         echo "[INFO] env: ${{ inputs.env }}"
+        echo "[INFO] mode: ${{ inputs.mode }}"
         echo "[INFO] chart_path: ${{ inputs.chart_path }}"
+        echo "[INFO] manifests_path: ${{ inputs.manifests_path }}"
         echo "[INFO] release_version: ${{ inputs.release_version }}"
         echo "[INFO] extra_params: ${{ inputs.extra_params }}"
 
@@ -53,6 +60,7 @@ runs:
         echo "CHART_PATH=${{ inputs.chart_path }}" >> $GITHUB_ENV
         echo "HELM_RELEASE=app-$app-$env" >> $GITHUB_ENV
         echo "NAMESPACE=app-$app-$env" >> $GITHUB_ENV
+        echo "DEPLOY_MODE=${{ inputs.mode }}" >> $GITHUB_ENV
 
     - name: Check for envs.yaml file, set up cluster and values file
       shell: bash
@@ -127,7 +135,11 @@ runs:
         method: kubeconfig
         kubeconfig: "${{ inputs.kubeconfig_np }}"
 
-    - name: Helm lint
+    # ============================================================
+    # CLASSIC MODE — existing behavior, unchanged
+    # ============================================================
+    - name: "[classic] Helm lint"
+      if: ${{ env.DEPLOY_MODE == 'classic' }}
       shell: bash
       run: |
         # Linting helm chart..
@@ -140,7 +152,8 @@ runs:
           --values="$CHART_PATH/$VALUES_FILE" \
           $CHART_PATH 1>&2
 
-    - name: Helm deploy
+    - name: "[classic] Helm deploy"
+      if: ${{ env.DEPLOY_MODE == 'classic' }}
       shell: bash
       run: |
         # Deploying helm chart..
@@ -156,6 +169,75 @@ runs:
           --namespace="$NAMESPACE" \
           --install --wait --atomic --create-namespace
 
+    # ============================================================
+    # PRERENDERED MODE — caller generates manifests, we wrap in
+    # a minimal helm chart and use helm upgrade for release tracking
+    # ============================================================
+    - name: "[prerendered] Build wrapper chart"
+      if: ${{ env.DEPLOY_MODE == 'prerendered' }}
+      shell: bash
+      run: |
+        # Build a minimal helm chart that wraps pre-rendered manifests
+        MANIFESTS_PATH="${{ inputs.manifests_path }}"
+        WRAPPER_CHART="/tmp/wrapper-chart-$HELM_RELEASE"
+
+        if [[ -z "$MANIFESTS_PATH" ]]; then
+          echo "[ERROR] manifests_path is required in prerendered mode"
+          exit 1
+        fi
+
+        if [[ ! -d "$MANIFESTS_PATH" ]]; then
+          echo "[ERROR] manifests_path '$MANIFESTS_PATH' does not exist or is not a directory"
+          exit 1
+        fi
+
+        # Count yaml files
+        YAML_COUNT=$(find "$MANIFESTS_PATH" -name '*.yaml' -o -name '*.yml' | wc -l | tr -d ' ')
+        echo "[INFO] Found $YAML_COUNT manifest files in $MANIFESTS_PATH"
+
+        if [[ "$YAML_COUNT" -eq 0 ]]; then
+          echo "[ERROR] No YAML files found in $MANIFESTS_PATH"
+          exit 1
+        fi
+
+        # Create minimal chart structure
+        rm -rf "$WRAPPER_CHART"
+        mkdir -p "$WRAPPER_CHART/templates"
+
+        cat > "$WRAPPER_CHART/Chart.yaml" <<EOF
+        apiVersion: v2
+        name: $HELM_RELEASE
+        version: 0.1.0
+        appVersion: "$RELEASE_VERSION"
+        description: "Pre-rendered manifests for $HELM_RELEASE"
+        EOF
+
+        # Copy all manifests into templates/ — helm will apply them as-is
+        cp "$MANIFESTS_PATH"/*.yaml "$WRAPPER_CHART/templates/" 2>/dev/null || true
+        cp "$MANIFESTS_PATH"/*.yml "$WRAPPER_CHART/templates/" 2>/dev/null || true
+
+        echo "[INFO] Wrapper chart created at $WRAPPER_CHART"
+        echo "[INFO] Contents:"
+        ls -la "$WRAPPER_CHART/templates/"
+
+        echo "WRAPPER_CHART=$WRAPPER_CHART" >> $GITHUB_ENV
+
+    - name: "[prerendered] Helm deploy"
+      if: ${{ env.DEPLOY_MODE == 'prerendered' }}
+      shell: bash
+      run: |
+        # Deploying pre-rendered manifests via helm (for release tracking & rollback)
+        echo "[INFO] Deploying wrapper chart as helm release: $HELM_RELEASE"
+        helm upgrade $HELM_RELEASE \
+          "$WRAPPER_CHART" \
+          ${{ inputs.extra_params }} \
+          --timeout "5m0s" \
+          --namespace="$NAMESPACE" \
+          --install --wait --atomic --create-namespace
+
+    # ============================================================
+    # SHARED — debug on failure
+    # ============================================================
     - name: Debug failed deployment
       if: failure()
       shell: bash
