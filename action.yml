@@ -110,18 +110,25 @@ runs:
         fi
 
         env_file="$MANIFESTS_PATH/env.json"
+
         if [[ ! -f "$env_file" ]]; then
           echo "[ERROR] $env_file not found. Your cdk8s chart should generate env.json with cluster/namespace fields."
           exit 1
         fi
 
-        target_cluster=$(jq -er '.cluster' "$env_file")
-        custom_namespace=$(jq -er '.namespace' "$env_file")
+        target_cluster   = $(jq -er '.cluster'   "$env_file")
+        custom_namespace = $(jq -er '.namespace' "$env_file")
 
-        echo "[INFO] cluster=$target_cluster namespace=$custom_namespace"
+        if [[ $target_cluster == "null" ]]; then
+          echo "[ERROR] Cluster not found in $env_file. Please add cluster field to $env_file.."
+          exit 1
+        fi
+        if [[ $custom_namespace != "null" ]]; then
+          echo "[INFO] Overriding namespace to $custom_namespace found in $envs_file.."
+          echo "NAMESPACE=$custom_namespace" >> $GITHUB_ENV
+        fi
+
         echo "CLUSTER=$target_cluster" >> $GITHUB_ENV
-        echo "NAMESPACE=$custom_namespace" >> $GITHUB_ENV
-        echo "MANIFESTS_PATH=$MANIFESTS_PATH" >> $GITHUB_ENV
 
     - name: Set release version
       shell: bash
