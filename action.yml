@@ -207,9 +207,9 @@ runs:
       shell: bash
       run: |
         # Deploying pre-rendered helm chart (for release tracking & rollback)
-        echo "[INFO] Deploying helm chart from $MANIFESTS_PATH as release: $HELM_RELEASE"
+        echo "[INFO] Deploying helm chart from ${{ inputs.manifests_path }} as release: $HELM_RELEASE"
         helm upgrade $HELM_RELEASE \
-          "$MANIFESTS_PATH" \
+          "${{ inputs.manifests_path }}" \
           ${{ inputs.extra_params }} \
           --timeout "5m0s" \
           --namespace="$NAMESPACE" \
