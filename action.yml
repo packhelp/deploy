@@ -116,8 +116,8 @@ runs:
           exit 1
         fi
 
-        target_cluster   = $(jq -er '.cluster'   "$env_file")
-        custom_namespace = $(jq -er '.namespace' "$env_file")
+        target_cluster=$(jq -er '.cluster'   "$env_file")
+        custom_namespace=$(jq -er '.namespace' "$env_file")
 
         if [[ $target_cluster == "null" ]]; then
           echo "[ERROR] Cluster not found in $env_file. Please add cluster field to $env_file.."
