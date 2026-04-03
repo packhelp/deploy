@@ -63,6 +63,7 @@ runs:
         echo "DEPLOY_MODE=${{ inputs.mode }}" >> $GITHUB_ENV
 
     - name: Check for envs.yaml file, set up cluster and values file
+      if: ${{ env.DEPLOY_MODE == 'classic' }}
       shell: bash
       run: |
         # Checking envs.yaml config and setting up cluster and values file..
@@ -89,10 +90,6 @@ runs:
           echo "[INFO] Env not found in $envs_file. Using default cluster.."
           cluster=$(cat $CHART_PATH/$envs_file | yq .default.cluster)
         fi
-        if [[ $values_file == "null" ]]; then
-          echo "[INFO] Env not found in $envs_file. Using default values file.."
-          values_file=$(cat $CHART_PATH/$envs_file | yq .default.values)
-        fi
         if [[ $custom_namespace != "null" ]]; then
           echo "[INFO] Overriding namespace to $custom_namespace found in $envs_file.."
           echo "NAMESPACE=$custom_namespace" >> $GITHUB_ENV
@@ -100,6 +97,37 @@ runs:
 
         echo "CLUSTER=$cluster" >> $GITHUB_ENV
         echo "VALUES_FILE=$values_file" >> $GITHUB_ENV
+
+    - name: Check for envs.json file, set up cluster and values file
+      if: ${{ env.DEPLOY_MODE == 'prerendered' }}
+      shell: bash
+      run: |
+
+        envs_file="envs.json"
+        env_file_path="$CHART_PATH/$envs_file"
+
+        if [ -f $env_file_path ]; then
+          echo "[INFO] File $envs_file exists.."
+        else
+          echo "[ERROR] File $envs_file does not exist. Please create $envs_file file in $CHART_PATH.."
+          echo "[ERROR] Example: in lumen repository, it's located in /lumen/helm-chart/envs.json"
+          exit 1
+        fi
+
+        target_cluster   = $(jq -er '.cluster'   "$env_file_path")
+        custom_namespace = $(jq -er '.namespace' "$env_file_path")
+
+
+        if [[ $target_cluster == "null" ]]; then
+          echo "[INFO] Env not found in $envs_file.
+          exit 1
+        fi
+        if [[ $custom_namespace != "null" ]]; then
+          echo "[INFO] Overriding namespace to $custom_namespace found in $envs_file.."
+          echo "NAMESPACE=$custom_namespace" >> $GITHUB_ENV
+        fi
+
+        echo "CLUSTER=$target_cluster" >> $GITHUB_ENV
 
     - name: Set release version
       shell: bash
