@@ -98,36 +98,30 @@ runs:
         echo "CLUSTER=$cluster" >> $GITHUB_ENV
         echo "VALUES_FILE=$values_file" >> $GITHUB_ENV
 
-    - name: Check for envs.json file, set up cluster and values file
+    - name: Read env.json from helm chart, set up cluster and namespace
       if: ${{ env.DEPLOY_MODE == 'prerendered' }}
       shell: bash
       run: |
+        MANIFESTS_PATH="${{ inputs.manifests_path }}"
 
-        envs_file="envs.json"
-        env_file_path="$CHART_PATH/$envs_file"
-
-        if [ -f $env_file_path ]; then
-          echo "[INFO] File $envs_file exists.."
-        else
-          echo "[ERROR] File $envs_file does not exist. Please create $envs_file file in $CHART_PATH.."
-          echo "[ERROR] Example: in lumen repository, it's located in /lumen/helm-chart/envs.json"
+        if [[ -z "$MANIFESTS_PATH" || ! -d "$MANIFESTS_PATH" ]]; then
+          echo "[ERROR] manifests_path ('$MANIFESTS_PATH') is required and must be a directory"
           exit 1
         fi
 
-        target_cluster   = $(jq -er '.cluster'   "$env_file_path")
-        custom_namespace = $(jq -er '.namespace' "$env_file_path")
-
-
-        if [[ $target_cluster == "null" ]]; then
-          echo "[INFO] Env not found in $envs_file.
+        env_file="$MANIFESTS_PATH/env.json"
+        if [[ ! -f "$env_file" ]]; then
+          echo "[ERROR] $env_file not found. Your cdk8s chart should generate env.json with cluster/namespace fields."
           exit 1
         fi
-        if [[ $custom_namespace != "null" ]]; then
-          echo "[INFO] Overriding namespace to $custom_namespace found in $envs_file.."
-          echo "NAMESPACE=$custom_namespace" >> $GITHUB_ENV
-        fi
 
+        target_cluster=$(jq -er '.cluster' "$env_file")
+        custom_namespace=$(jq -er '.namespace' "$env_file")
+
+        echo "[INFO] cluster=$target_cluster namespace=$custom_namespace"
         echo "CLUSTER=$target_cluster" >> $GITHUB_ENV
+        echo "NAMESPACE=$custom_namespace" >> $GITHUB_ENV
+        echo "MANIFESTS_PATH=$MANIFESTS_PATH" >> $GITHUB_ENV
 
     - name: Set release version
       shell: bash
@@ -198,66 +192,17 @@ runs:
           --install --wait --atomic --create-namespace
 
     # ============================================================
-    # PRERENDERED MODE — caller generates manifests, we wrap in
-    # a minimal helm chart and use helm upgrade for release tracking
+    # PRERENDERED MODE — caller provides a complete helm chart
+    # (e.g. from cdk8s synth --format helm), we deploy it directly
     # ============================================================
-    - name: "[prerendered] Build wrapper chart"
-      if: ${{ env.DEPLOY_MODE == 'prerendered' }}
-      shell: bash
-      run: |
-        # Build a minimal helm chart that wraps pre-rendered manifests
-        MANIFESTS_PATH="${{ inputs.manifests_path }}"
-        WRAPPER_CHART="/tmp/wrapper-chart-$HELM_RELEASE"
-
-        if [[ -z "$MANIFESTS_PATH" ]]; then
-          echo "[ERROR] manifests_path is required in prerendered mode"
-          exit 1
-        fi
-
-        if [[ ! -d "$MANIFESTS_PATH" ]]; then
-          echo "[ERROR] manifests_path '$MANIFESTS_PATH' does not exist or is not a directory"
-          exit 1
-        fi
-
-        # Count yaml files
-        YAML_COUNT=$(find "$MANIFESTS_PATH" -name '*.yaml' -o -name '*.yml' | wc -l | tr -d ' ')
-        echo "[INFO] Found $YAML_COUNT manifest files in $MANIFESTS_PATH"
-
-        if [[ "$YAML_COUNT" -eq 0 ]]; then
-          echo "[ERROR] No YAML files found in $MANIFESTS_PATH"
-          exit 1
-        fi
-
-        # Create minimal chart structure
-        rm -rf "$WRAPPER_CHART"
-        mkdir -p "$WRAPPER_CHART/templates"
-
-        cat > "$WRAPPER_CHART/Chart.yaml" <<EOF
-        apiVersion: v2
-        name: $HELM_RELEASE
-        version: 0.1.0
-        appVersion: "$RELEASE_VERSION"
-        description: "Pre-rendered manifests for $HELM_RELEASE"
-        EOF
-
-        # Copy all manifests into templates/ — helm will apply them as-is
-        cp "$MANIFESTS_PATH"/*.yaml "$WRAPPER_CHART/templates/" 2>/dev/null || true
-        cp "$MANIFESTS_PATH"/*.yml "$WRAPPER_CHART/templates/" 2>/dev/null || true
-
-        echo "[INFO] Wrapper chart created at $WRAPPER_CHART"
-        echo "[INFO] Contents:"
-        ls -la "$WRAPPER_CHART/templates/"
-
-        echo "WRAPPER_CHART=$WRAPPER_CHART" >> $GITHUB_ENV
-
     - name: "[prerendered] Helm deploy"
       if: ${{ env.DEPLOY_MODE == 'prerendered' }}
       shell: bash
       run: |
-        # Deploying pre-rendered manifests via helm (for release tracking & rollback)
-        echo "[INFO] Deploying wrapper chart as helm release: $HELM_RELEASE"
+        # Deploying pre-rendered helm chart (for release tracking & rollback)
+        echo "[INFO] Deploying helm chart from $MANIFESTS_PATH as release: $HELM_RELEASE"
         helm upgrade $HELM_RELEASE \
-          "$WRAPPER_CHART" \
+          "$MANIFESTS_PATH" \
           ${{ inputs.extra_params }} \
           --timeout "5m0s" \
           --namespace="$NAMESPACE" \
