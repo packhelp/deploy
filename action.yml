@@ -112,6 +112,11 @@ runs:
 
     - name: Setup helm
       uses: azure/setup-helm@v4
+      with:
+        # Pinned so helm doesn't change under us (unpinned, this jumped
+        # from Helm 3 to Helm 4 and broke fresh env installs via
+        # server-side apply strictness). Bump deliberately.
+        version: "v4.2.2"
 
     - name: Set k8s context to PR
       if: ${{ env.CLUSTER == 'pr' }}
