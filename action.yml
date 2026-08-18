@@ -1,5 +1,5 @@
 name: "Deploy Packhelp app"
-description: "Deploy via helm to a Kubernetes cluster"
+description: "Deploy via helm to a Kubernetes cluster. Supports classic helm charts and pre-rendered manifests."
 inputs:
   app:
     description: "Application to deploy"
@@ -23,9 +23,14 @@ inputs:
   kubeconfig_np:
     description: "Kubeconfig for NP cluster"
     required: false
-
-# TODO: Remove envName parameter from helm upgrade scripts
-# Once it's been replaced in all apps' helm charts to just `env`
+  # --- New inputs for pre-rendered mode ---
+  mode:
+    description: "Deployment mode: 'classic' (default) or 'prerendered'. In prerendered mode, manifests_path must contain ready-to-apply YAML files."
+    default: "classic"
+    required: false
+  manifests_path:
+    description: "Path to directory containing pre-rendered K8s manifests (only used in 'prerendered' mode)"
+    required: false
 
 runs:
   using: "composite"
@@ -38,7 +43,9 @@ runs:
         # Debug input values
         echo "[INFO] app: ${{ inputs.app }}"
         echo "[INFO] env: ${{ inputs.env }}"
+        echo "[INFO] mode: ${{ inputs.mode }}"
         echo "[INFO] chart_path: ${{ inputs.chart_path }}"
+        echo "[INFO] manifests_path: ${{ inputs.manifests_path }}"
         echo "[INFO] release_version: ${{ inputs.release_version }}"
         echo "[INFO] extra_params: ${{ inputs.extra_params }}"
 
@@ -53,8 +60,10 @@ runs:
         echo "CHART_PATH=${{ inputs.chart_path }}" >> $GITHUB_ENV
         echo "HELM_RELEASE=app-$app-$env" >> $GITHUB_ENV
         echo "NAMESPACE=app-$app-$env" >> $GITHUB_ENV
+        echo "DEPLOY_MODE=${{ inputs.mode }}" >> $GITHUB_ENV
 
     - name: Check for envs.yaml file, set up cluster and values file
+      if: ${{ env.DEPLOY_MODE == 'classic' }}
       shell: bash
       run: |
         # Checking envs.yaml config and setting up cluster and values file..
@@ -92,6 +101,38 @@ runs:
 
         echo "CLUSTER=$cluster" >> $GITHUB_ENV
         echo "VALUES_FILE=$values_file" >> $GITHUB_ENV
+
+    - name: Read env.json from helm chart, set up cluster and namespace
+      if: ${{ env.DEPLOY_MODE == 'prerendered' }}
+      shell: bash
+      run: |
+        MANIFESTS_PATH="${{ inputs.manifests_path }}"
+
+        if [[ -z "$MANIFESTS_PATH" || ! -d "$MANIFESTS_PATH" ]]; then
+          echo "[ERROR] manifests_path ('$MANIFESTS_PATH') is required and must be a directory"
+          exit 1
+        fi
+
+        env_file="$MANIFESTS_PATH/env.json"
+
+        if [[ ! -f "$env_file" ]]; then
+          echo "[ERROR] $env_file not found. Your cdk8s chart should generate env.json with cluster/namespace fields."
+          exit 1
+        fi
+
+        target_cluster=$(jq -er '.cluster'   "$env_file")
+        custom_namespace=$(jq -er '.namespace' "$env_file")
+
+        if [[ $target_cluster == "null" ]]; then
+          echo "[ERROR] Cluster not found in $env_file. Please add cluster field to $env_file.."
+          exit 1
+        fi
+        if [[ $custom_namespace != "null" ]]; then
+          echo "[INFO] Overriding namespace to $custom_namespace found in $envs_file.."
+          echo "NAMESPACE=$custom_namespace" >> $GITHUB_ENV
+        fi
+
+        echo "CLUSTER=$target_cluster" >> $GITHUB_ENV
 
     - name: Set release version
       shell: bash
@@ -132,7 +173,11 @@ runs:
         method: kubeconfig
         kubeconfig: "${{ inputs.kubeconfig_np }}"
 
-    - name: Helm lint
+    # ============================================================
+    # CLASSIC MODE — existing behavior, unchanged
+    # ============================================================
+    - name: "[classic] Helm lint"
+      if: ${{ env.DEPLOY_MODE == 'classic' }}
       shell: bash
       run: |
         # Linting helm chart..
@@ -145,7 +190,8 @@ runs:
           --values="$CHART_PATH/$VALUES_FILE" \
           $CHART_PATH 1>&2
 
-    - name: Helm deploy
+    - name: "[classic] Helm deploy"
+      if: ${{ env.DEPLOY_MODE == 'classic' }}
       shell: bash
       run: |
         # Deploying helm chart..
@@ -161,6 +207,26 @@ runs:
           --namespace="$NAMESPACE" \
           --install --wait --atomic --create-namespace
 
+    # ============================================================
+    # PRERENDERED MODE — caller provides a complete helm chart
+    # (e.g. from cdk8s synth --format helm), we deploy it directly
+    # ============================================================
+    - name: "[prerendered] Helm deploy"
+      if: ${{ env.DEPLOY_MODE == 'prerendered' }}
+      shell: bash
+      run: |
+        # Deploying pre-rendered helm chart (for release tracking & rollback)
+        echo "[INFO] Deploying helm chart from ${{ inputs.manifests_path }} as release: $HELM_RELEASE"
+        helm upgrade $HELM_RELEASE \
+          "${{ inputs.manifests_path }}" \
+          ${{ inputs.extra_params }} \
+          --timeout "5m0s" \
+          --namespace="$NAMESPACE" \
+          --install --wait --atomic --create-namespace
+
+    # ============================================================
+    # SHARED — debug on failure
+    # ============================================================
     - name: Debug failed deployment
       if: failure()
       shell: bash
