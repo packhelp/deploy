@@ -23,6 +23,9 @@ inputs:
   kubeconfig_np:
     description: "Kubeconfig for NP cluster"
     required: false
+  kubeconfig_hetzner_np:
+    description: "Kubeconfig for the Hetzner non-prod cluster (separate from the AWS NP cluster)"
+    required: false
 
 # TODO: Remove envName parameter from helm upgrade scripts
 # Once it's been replaced in all apps' helm charts to just `env`
@@ -131,6 +134,13 @@ runs:
       with:
         method: kubeconfig
         kubeconfig: "${{ inputs.kubeconfig_np }}"
+
+    - name: Set k8s context to Hetzner NP
+      if: ${{ env.CLUSTER == 'hetzner-np' }}
+      uses: azure/k8s-set-context@v4
+      with:
+        method: kubeconfig
+        kubeconfig: "${{ inputs.kubeconfig_hetzner_np }}"
 
     - name: Helm lint
       shell: bash
