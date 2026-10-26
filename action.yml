@@ -33,7 +33,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Print inputs
       shell: bash
@@ -114,7 +114,7 @@ runs:
         echo "RELEASE_VERSION=$release_version" >> $GITHUB_ENV
 
     - name: Setup helm
-      uses: azure/setup-helm@v4
+      uses: azure/setup-helm@v5
       with:
         # Pinned so helm doesn't change under us (unpinned, this jumped
         # from Helm 3 to Helm 4 and broke fresh env installs via
@@ -123,21 +123,21 @@ runs:
 
     - name: Set k8s context to PR
       if: ${{ env.CLUSTER == 'pr' }}
-      uses: azure/k8s-set-context@v4
+      uses: azure/k8s-set-context@v5
       with:
         method: kubeconfig
         kubeconfig: "${{ inputs.kubeconfig_pr }}"
 
     - name: Set k8s context to NP
       if: ${{ env.CLUSTER == 'np' }}
-      uses: azure/k8s-set-context@v4
+      uses: azure/k8s-set-context@v5
       with:
         method: kubeconfig
         kubeconfig: "${{ inputs.kubeconfig_np }}"
 
     - name: Set k8s context to Hetzner NP
       if: ${{ env.CLUSTER == 'hetzner-np' }}
-      uses: azure/k8s-set-context@v4
+      uses: azure/k8s-set-context@v5
       with:
         method: kubeconfig
         kubeconfig: "${{ inputs.kubeconfig_hetzner_np }}"
