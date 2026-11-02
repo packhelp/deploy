@@ -167,9 +167,9 @@ runs:
           --set version="$RELEASE_VERSION" \
           --set envName="$ENV" \
           --set env="$ENV" \
-          --timeout "5m0s" \
+          --timeout "10m0s" \
           --namespace="$NAMESPACE" \
-          --install --wait --atomic --create-namespace
+          --install --wait --atomic --create-namespace --force-conflicts
 
     - name: Debug failed deployment
       if: failure()
